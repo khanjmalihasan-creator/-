@@ -27,7 +27,7 @@ BAD_WORDS = [
     "کصخل", "خارکصه", "تخم سگ", "پدر سوخته",
     "مادر جنده", "کیر تو کص ننت", "بی ناموس",
     "پدرسگ", "ننتو گاییدم", "جاکش", "کونده",
-    "گاییده شده", "کثافت", "حیوان", "الاغ"
+     "گاییده شده", "کثافت", "حیوان", "الاغ"
 ]
 
 class SelfBot:
@@ -156,8 +156,7 @@ class SelfBot:
         async def handler(event):
             try:
                 # ===== خودم نباشم =====
-                if event.sender_id == self.me.id:
-                    return
+                is_me = event.sender_id == self.me.id
                 
                 sender = await event.get_sender()
                 chat = await event.get_chat()
