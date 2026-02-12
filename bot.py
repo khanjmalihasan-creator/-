@@ -148,7 +148,7 @@ class SelfBot:
         while self.running:
             try:
                 await self.update_clock()
-                await asyncio.sleep(60)
+                await asyncio.sleep(15)
             except:
                 await asyncio.sleep(30)
     
