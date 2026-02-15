@@ -31,12 +31,10 @@ DEFAULT_BAD_WORDS = [
 
 # ========== لیست پیشفرض جوک‌ها ==========
 DEFAULT_JOKES = [
-    "یه روز یه بچه گربه رفت تو خونه...",
     "به به چه روز قشنگی!",
     "دوستت دارم رفیق! 🤗",
     "چطوری؟ خوبی؟",
     "خوشحالم که رفیقمی!",
-    "❤️❤️❤️",
     "بهترین دوست دنیا!"
 ]
 
@@ -107,13 +105,15 @@ class SelfBot:
             return False
     
     async def start(self):
+        """شروع بات با String Session - بدون نیاز به شماره"""
         print("=" * 60)
-        print("🔥 سلف بات فارسی - نسخه دوست و دشمن")
-        print("✅ فقط خودت | دوست = جوک | دشمن = فحش")
+        print("🔥 سلف بات فارسی - ورود با String Session")
+        print("✅ فقط با سشن - بدون نیاز به کد تایید")
         print("=" * 60)
         
         while self.running:
             try:
+                # اتصال با String Session - نیازی به شماره نیست!
                 self.client = TelegramClient(
                     StringSession(STRING_SESSION),
                     API_ID,
@@ -122,8 +122,8 @@ class SelfBot:
                     retry_delay=3
                 )
                 
-                print("📡 در حال اتصال به تلگرام...")
-                await self.client.start()
+                print("📡 در حال اتصال به تلگرام با سشن...")
+                await self.client.start()  # بدون phone!
                 
                 self.me = await self.client.get_me()
                 self.my_id = self.me.id
@@ -144,16 +144,15 @@ class SelfBot:
                 print("🕒 ساعت: کنار اسم")
                 print(f"📚 فحش‌ها: {len(self.bad_words)}")
                 print(f"😄 جوک‌ها: {len(self.jokes)}")
-                print("\n📌 دستورات جدید:")
+                print("\n📌 دستورات:")
                 print("   • تنظیم دوست (ریپلای کن)")
                 print("   • خاموش دوست")
-                print("   • افزودن جوک [متن]")
-                print("   • حذف جوک [متن]")
-                print("   • لیست جوک‌ها")
                 print("   • تنظیم دشمن (ریپلای)")
                 print("   • خاموش دشمن")
                 print("   • ساعت روشن/خاموش")
                 print("   • وضعیت")
+                print("   • افزودن فحش [متن]")
+                print("   • افزودن جوک [متن]")
                 print("=" * 50 + "\n")
                 
                 await self.client.run_until_disconnected()
@@ -163,6 +162,7 @@ class SelfBot:
                 await asyncio.sleep(5)
     
     async def update_clock(self):
+        """آپدیت ساعت روی پروفایل"""
         try:
             if self.clock_enabled:
                 iran_tz = pytz.timezone('Asia/Tehran')
@@ -185,14 +185,17 @@ class SelfBot:
             return False
     
     async def clock_loop(self):
+        """لوپ آپدیت ساعت"""
         while self.running:
             try:
                 await self.update_clock()
-                await asyncio.sleep(10)
+                await asyncio.sleep(10)  # هر ۱۰ ثانیه
             except:
                 await asyncio.sleep(30)
     
     async def setup_handlers(self):
+        """تنظیم هندلرها"""
+        
         @self.client.on(events.NewMessage)
         async def handler(event):
             try:
@@ -232,7 +235,7 @@ class SelfBot:
                         f"😄 بهش جوک میدم!\n"
                         f"📚 **جوک‌ها:** {len(self.jokes)}"
                     )
-                    print(f"😄 دوست جدید: {self.friend_name} در {chat_title}")
+                    print(f"😄 دوست جدید: {self.friend_name}")
                     return
                 
                 # ========== خاموش دوست ==========
@@ -273,7 +276,7 @@ class SelfBot:
                         f"🔥 فقط همینجا فحش میخوره!\n"
                         f"📚 **فحش‌ها:** {len(self.bad_words)}"
                     )
-                    print(f"🎯 دشمن: {self.enemy_name} در {chat_title}")
+                    print(f"🎯 دشمن: {self.enemy_name}")
                     return
                 
                 # ========== خاموش دشمن ==========
@@ -291,14 +294,10 @@ class SelfBot:
                 
                 # ========== وضعیت ==========
                 if text == "وضعیت":
-                    # وضعیت دشمن
                     enemy_status = "🔥 فعال" if self.enemy_mode else "⭕ غیرفعال"
                     enemy_name = self.enemy_name if self.enemy_mode else "ندارد"
-                    
-                    # وضعیت دوست
                     friend_status = "😄 فعال" if self.friend_mode else "⭕ غیرفعال"
                     friend_name = self.friend_name if self.friend_mode else "ندارد"
-                    
                     clock_status = "🟢 روشن" if self.clock_enabled else "🔴 خاموش"
                     now = datetime.now(pytz.timezone('Asia/Tehran')).strftime('%H:%M:%S')
                     
@@ -351,7 +350,7 @@ class SelfBot:
                     if joke and joke not in self.jokes:
                         self.jokes.append(joke)
                         self.save_data('jokes.json', self.jokes)
-                        await event.reply(f"✅ جوک اضافه شد: {joke[:30]}...\n📊 تعداد: {len(self.jokes)}")
+                        await event.reply(f"✅ جوک اضافه شد\n📊 تعداد: {len(self.jokes)}")
                     return
                 
                 if text.startswith("حذف جوک"):
@@ -362,32 +361,12 @@ class SelfBot:
                         await event.reply(f"✅ جوک حذف شد")
                     return
                 
-                if text == "لیست فحش‌ها":
-                    if not self.bad_words:
-                        await event.reply("📭 لیست فحش‌ها خالی است!")
-                        return
-                    
-                    words_list = "\n".join([f"{i+1}. {w}" for i, w in enumerate(self.bad_words[:20])])
-                    more = f"\n... و {len(self.bad_words)-20} فحش دیگه" if len(self.bad_words) > 20 else ""
-                    await event.reply(f"📋 **لیست فحش‌ها:**\n\n{words_list}{more}")
-                    return
-                
-                if text == "لیست جوک‌ها":
-                    if not self.jokes:
-                        await event.reply("📭 لیست جوک‌ها خالی است!")
-                        return
-                    
-                    jokes_list = "\n".join([f"{i+1}. {j[:50]}..." for i, j in enumerate(self.jokes[:10])])
-                    more = f"\n... و {len(self.jokes)-10} جوک دیگه" if len(self.jokes) > 10 else ""
-                    await event.reply(f"😄 **لیست جوک‌ها:**\n\n{jokes_list}{more}")
-                    return
-                
             except Exception as e:
                 print(f"⚠️ خطا: {e}")
         
-        # ========== هندلر فحش دادن به دشمن ==========
+        # ========== هندلر پاسخ به دوست و دشمن ==========
         @self.client.on(events.NewMessage)
-        async def enemy_handler(event):
+        async def reply_handler(event):
             try:
                 # فحش به دشمن
                 if (self.enemy_mode and 
@@ -419,18 +398,14 @@ class SelfBot:
                 print(f"⚠️ خطا در پاسخ: {e}")
 
 # ========== اجرا ==========
-bot = SelfBot()
-
-async def main():
-    await bot.start()
-
 if __name__ == "__main__":
+    bot = SelfBot()
     try:
-        asyncio.run(main())
+        asyncio.run(bot.start())
     except KeyboardInterrupt:
         print("\n\n🛑 سلف بات متوقف شد.")
         bot.running = False
     except Exception as e:
         print(f"\n❌ خطا: {e}")
         time.sleep(5)
-        asyncio.run(main())
+        asyncio.run(bot.start())
