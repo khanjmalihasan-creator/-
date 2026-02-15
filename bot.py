@@ -15,7 +15,7 @@ from telethon.tl.functions.account import UpdateProfileRequest
 from telethon.errors import FloodWaitError
 
 # ========== سشن جدیدتو اینجا بذار ==========
-STRING_SESSION = "1BJWap1wBu8BogZKyA7NsQolk9q6BhEHfWFwkjRhMGOmas_jLJmcmtATDDzQ0tGs_1hLc43hIOT5TTAYsUaKB865wHCfb3CaSyOfbled0g9nnLwkXgXFbxWI8K2v7Sd7MXqqXV7HjmjiF41UqfNhQLiDmEdqXx-B8qv6s5seNDTTfFb1rqIvifNj_loX32kn5flwZHNfycLuafHmVrpDVWr8ISZhihWKRE9mdCSKvBqpPrkqQ0gTpOgUbPNm0vCnQkyi59SkQdUopUAMk2sdcZvxfFgBHvAyeWwO7PjXxNSevdZnbFkc-TQhS7ZV7vv6Yhggo7oqvtOpKAuMDZMcE5RooEqGFUXk="
+STRING_SESSION = "1BJWap1sBuyUuXFchFe50kBrPoHGgZdJfVgorWsZ9JwY8A0YZNhblt83rf7CBHYRvwenr1QUkTNSBeuSO5gVhPuSZJ0hBNYqtm40H5cJoqyzL4Wa4wlaPZd64qFBWFVtkzmhHvogogVaOWGMVP_tG-wnzDSKIFXU3aC4i7W9NoTbXFC5YewVj-p45YeBrYTYg5oh797o0YBeunBmE874YbOOQBbLIOxakUgb6oEq9etLCuzIM9mvtHdzw907IjlAEHz2uET-r79BM80bOT1wGNUurivD5jLXs2hMTxdy5y6upj8vd9CPgQbo_b6926DbtD95HTk8nhNNvYHTeaNhVWprFdGagGdA="
 # ============================================
 
 API_ID = 31266351
