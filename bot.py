@@ -12,90 +12,95 @@ import pytz
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.functions.account import UpdateProfileRequest
+from telethon.tl.functions.messages import GetHistoryRequest
 from telethon.errors import FloodWaitError
 
-# ========== سشن جدید شما ==========
-STRING_SESSION = "1BJWap1sBu0fkvwFSGXVOqLnsU1NLi5BeJJZSsABXBvr7aJaoLr3Ei2I0032bUSqab5id3cG7lBaLa5H2OojKIRL9UhW7Bjs2g4MzY3D-jkF1IlhbYNHuBj74YSGDkj34GodL4l5cDr6gRDBFvj4urfLlx-hMscmvVLpf4lcB1EUl5cKaC0GekgHgAx2MoznUcfGnYPhTY4msCOWi14LswX97P9YOW8rlYyJjTDVXQ3pl9ajDRWj7RlSNO821P1zj_32LzRxwi5dhcQD-cbvCU9JCoyFMylB52syPIgwYe_7fSeSOQ_QdXd2y5scg2rVBemsMRIW8uYaZLebrLdJK3cfrL9YYdiU="
+# ========== سشن شما ==========
+STRING_SESSION = "1BJWap1sBuyUuXFchFe50kBrPoHGgZdJfVgorWsZ9JwY8A0YZNhblt83rf7CBHYRvwenr1QUkTNSBeuSO5gVhPuSZJ0hBNYqtm40H5cJoqyzL4Wa4wlaPZd64qFBWFVtkzmhHvogogVaOWGMVP_tG-wnzDSKIFXU3aC4i7W9NoTbXFC5YewVj-p45YeBrYTYg5oh797o0YBeunBmE874YbOOQBbLIOxakUgb6oEq9etLCuzIM9mvtHdzw907IjlAEHz2uET-r79BM80bOT1wGNUurivD5jLXs2hMTxdy5y6upj8vd9CPgQbo_b6926DbtD95HTk8nhNNvYHTeaNhVWprFdGagGdA="
 # ====================================
 
 API_ID = 31266351
 API_HASH = '0c86dc56c8937015b96c0f306e91fa05'
 
-# ========== لیست پیشفرض فحش‌ها ==========
-DEFAULT_BAD_WORDS = [
-    "کص ننت", "کیرم دهنت", "جنده", "کونی", "لاشی",
-    "کص کش", "حرومزاده", "گاییدمت", "ننه جنده",
-    "کصخل", "خارکصه", "تخم سگ", "پدر سوخته",
-    "مادر جنده", "کیر تو کص ننت", "بی ناموس"
-]
-
-# ========== لیست پیشفرض جوک‌ها ==========
-DEFAULT_JOKES = [
-    "به به چه روز قشنگی!",
-    "دوستت دارم رفیق! 🤗",
-    "چطوری؟ خوبی؟",
-    "خوشحالم که رفیقمی!",
-    "بهترین دوست دنیا!"
-]
-
 class SelfBot:
     def __init__(self):
-        self.enemy_id = None
-        self.enemy_name = None
-        self.enemy_chat_id = None
-        self.enemy_mode = False
-        self.friend_id = None
-        self.friend_name = None
-        self.friend_chat_id = None
-        self.friend_mode = False
+        # ===== کاربران خاص =====
+        self.special_users = {}  # {user_id: {"name": "توماس", "replies": ["سلام", "خوبی"]}}
+        
+        # ===== دشمنان =====
+        self.enemies = {}  # {user_id: {"name": "علی", "chat_id": 123, "bad_words": ["فحش1", "فحش2"]}}
+        
+        # ===== ساعت =====
         self.clock_enabled = True
         self.original_name = ""
-        self.bad_words = []
-        self.jokes = []
-        self.load_data()
+        
+        # ===== حالت بولد =====
+        self.bold_mode = False
+        
+        # ===== تشخیص پیام حذف شده =====
+        self.deleted_msg_tracking = {}  # {chat_id: {msg_id: {"text": "...", "user_id": 123, "name": "..."}}}
+        self.delete_detection_enabled = False
+        
+        # ===== لیست فحش‌های پیشفرض =====
+        self.default_bad_words = [
+            "کص ننت", "کیرم دهنت", "جنده", "کونی", "لاشی",
+            "کص کش", "حرومزاده", "گاییدمت", "ننه جنده"
+        ]
+        
+        # ===== متغیرهای بات =====
         self.client = None
         self.me = None
         self.my_id = None
         self.running = True
         self.tasks = []
+        
+        self.load_data()
     
     def load_data(self):
+        """لود اطلاعات از فایل"""
         try:
-            if os.path.exists('bad_words.json'):
-                with open('bad_words.json', 'r', encoding='utf-8') as f:
-                    self.bad_words = json.load(f)
-                print(f"📚 {len(self.bad_words)} فحش از فایل لود شد")
-            else:
-                self.bad_words = DEFAULT_BAD_WORDS.copy()
-                self.save_data('bad_words.json', self.bad_words)
-                print(f"📚 {len(self.bad_words)} فحش پیشفرض لود شد")
+            if os.path.exists('special_users.json'):
+                with open('special_users.json', 'r', encoding='utf-8') as f:
+                    self.special_users = json.load(f)
+                print(f"👥 {len(self.special_users)} کاربر خاص لود شد")
             
-            if os.path.exists('jokes.json'):
-                with open('jokes.json', 'r', encoding='utf-8') as f:
-                    self.jokes = json.load(f)
-                print(f"😄 {len(self.jokes)} جوک از فایل لود شد")
-            else:
-                self.jokes = DEFAULT_JOKES.copy()
-                self.save_data('jokes.json', self.jokes)
-                print(f"😄 {len(self.jokes)} جوک پیشفرض لود شد")
+            if os.path.exists('enemies.json'):
+                with open('enemies.json', 'r', encoding='utf-8') as f:
+                    self.enemies = json.load(f)
+                print(f"👤 {len(self.enemies)} دشمن لود شد")
+                
+            if os.path.exists('settings.json'):
+                with open('settings.json', 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                    self.bold_mode = settings.get('bold_mode', False)
+                    self.delete_detection_enabled = settings.get('delete_detection', False)
+                    self.clock_enabled = settings.get('clock_enabled', True)
                 
         except Exception as e:
             print(f"⚠️ خطا در لود: {e}")
-            self.bad_words = DEFAULT_BAD_WORDS.copy()
-            self.jokes = DEFAULT_JOKES.copy()
     
-    def save_data(self, filename, data):
+    def save_data(self):
+        """ذخیره اطلاعات در فایل"""
         try:
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            return True
+            with open('special_users.json', 'w', encoding='utf-8') as f:
+                json.dump(self.special_users, f, ensure_ascii=False, indent=2)
+            
+            with open('enemies.json', 'w', encoding='utf-8') as f:
+                json.dump(self.enemies, f, ensure_ascii=False, indent=2)
+            
+            settings = {
+                'bold_mode': self.bold_mode,
+                'delete_detection': self.delete_detection_enabled,
+                'clock_enabled': self.clock_enabled
+            }
+            with open('settings.json', 'w', encoding='utf-8') as f:
+                json.dump(settings, f, ensure_ascii=False, indent=2)
         except:
-            return False
+            pass
     
     async def start(self):
         print("=" * 60)
-        print("🔥 سلف بات فارسی - نسخه نهایی")
-        print("✅ سشن جدید جایگزین شد")
+        print("🔥 سلف بات - نسخه کامل با همه قابلیت‌ها")
         print("=" * 60)
         
         while self.running:
@@ -108,7 +113,7 @@ class SelfBot:
                     retry_delay=1
                 )
                 
-                print("📡 در حال اتصال به تلگرام با سشن جدید...")
+                print("📡 در حال اتصال به تلگرام...")
                 await self.client.start()
                 
                 self.me = await self.client.get_me()
@@ -117,26 +122,24 @@ class SelfBot:
                 
                 print(f"✅ متصل شدیم به: {self.original_name}")
                 print(f"🆔 آیدی من: {self.my_id}")
-                print(f"📚 فحش‌ها: {len(self.bad_words)}")
-                print(f"😄 جوک‌ها: {len(self.jokes)}")
+                print(f"👥 کاربران خاص: {len(self.special_users)}")
+                print(f"👤 دشمنان: {len(self.enemies)}")
+                print(f"⚡ حالت بولد: {'روشن' if self.bold_mode else 'خاموش'}")
+                print(f"🚨 تشخیص حذف: {'روشن' if self.delete_detection_enabled else 'خاموش'}")
                 
                 await self.update_clock()
-                
-                # ایجاد تسک‌ها با مدیریت درست
                 clock_task = asyncio.create_task(self.clock_loop())
                 self.tasks.append(clock_task)
+                
+                if self.delete_detection_enabled:
+                    delete_task = asyncio.create_task(self.deleted_message_detector())
+                    self.tasks.append(delete_task)
                 
                 await self.setup_handlers()
                 
                 print("\n" + "=" * 50)
                 print("✅ سلف بات فعال شد!")
-                print("📌 دستورات:")
-                print("   • تنظیم دوست (ریپلای کن)")
-                print("   • خاموش دوست")
-                print("   • تنظیم دشمن (ریپلای)")
-                print("   • خاموش دشمن")
-                print("   • ساعت روشن/خاموش")
-                print("   • وضعیت")
+                self.show_commands()
                 print("=" * 50 + "\n")
                 
                 await self.client.run_until_disconnected()
@@ -144,6 +147,29 @@ class SelfBot:
             except Exception as e:
                 print(f"❌ خطا: {e}")
                 await asyncio.sleep(5)
+    
+    def show_commands(self):
+        """نمایش دستورات"""
+        print("📌 **دستورات جدید:**")
+        print("   • بولد روشن - فعال کردن حالت بولد")
+        print("   • بولد خاموش - غیرفعال کردن حالت بولد")
+        print("   • تشخیص حذف روشن - فعال کردن تشخیص پیام حذف شده")
+        print("   • تشخیص حذف خاموش - غیرفعال کردن")
+        print("   • پیگیری [آیدی] - شروع پیگیری پیام‌های یک کاربر")
+        print("   • توقف پیگیری - توقف پیگیری")
+        print("\n📌 **دستورات کاربران خاص:**")
+        print("   • تنظیم کاربر [نام] (ریپلای) - مثال: تنظیم کاربر توماس")
+        print("   • افزودن پاسخ [آیدی] => [متن]")
+        print("   • حذف کاربر [آیدی]")
+        print("   • لیست کاربران")
+        print("\n📌 **دستورات دشمنان:**")
+        print("   • تنظیم دشمن (ریپلای)")
+        print("   • افزودن فحش [آیدی] => [متن]")
+        print("   • حذف دشمن [آیدی]")
+        print("   • لیست دشمنان")
+        print("\n📌 **سایر:**")
+        print("   • ساعت روشن/خاموش")
+        print("   • وضعیت")
     
     async def update_clock(self):
         try:
@@ -157,30 +183,66 @@ class SelfBot:
                     first_name=full_name,
                     last_name=''
                 ))
-                print(f"🕒 پروفایل: {full_name}")
             else:
                 await self.client(UpdateProfileRequest(
                     first_name=self.original_name,
                     last_name=''
                 ))
-            return True
         except:
-            return False
+            pass
     
     async def clock_loop(self):
-        try:
-            while self.running:
-                try:
-                    await self.update_clock()
-                    await asyncio.sleep(10)
-                except FloodWaitError as e:
-                    print(f"⚠️ محدودیت: {e.seconds} ثانیه")
-                    await asyncio.sleep(e.seconds)
-                except Exception as e:
-                    print(f"⚠️ خطا در ساعت: {e}")
-                    await asyncio.sleep(30)
-        except asyncio.CancelledError:
-            print("⏹️ تسک ساعت متوقف شد")
+        while self.running:
+            try:
+                await self.update_clock()
+                await asyncio.sleep(10)
+            except:
+                await asyncio.sleep(30)
+    
+    async def deleted_message_detector(self):
+        """تشخیص پیام‌های حذف شده"""
+        print("👀 شروع نظارت بر پیام‌های حذف شده...")
+        
+        while self.running and self.delete_detection_enabled:
+            try:
+                for chat_id, messages in list(self.deleted_msg_tracking.items()):
+                    try:
+                        # دریافت پیام‌های جدید
+                        history = await self.client(GetHistoryRequest(
+                            peer=chat_id,
+                            limit=20,
+                            offset_date=None,
+                            offset_id=0,
+                            max_id=0,
+                            min_id=0,
+                            add_offset=0,
+                            hash=0
+                        ))
+                        
+                        existing_ids = [msg.id for msg in history.messages]
+                        
+                        # بررسی پیام‌های حذف شده
+                        for msg_id, msg_data in list(messages.items()):
+                            if msg_id not in existing_ids:
+                                # پیام حذف شده
+                                alert = (
+                                    f"🚨 **پیام حذف شد!**\n\n"
+                                    f"👤 از: {msg_data['name']}\n"
+                                    f"🆔 آیدی: {msg_data['user_id']}\n"
+                                    f"📝 متن: {msg_data['text']}\n"
+                                    f"🕒 زمان حذف: {datetime.now().strftime('%H:%M:%S')}"
+                                )
+                                await self.client.send_message(self.my_id, alert)
+                                del self.deleted_msg_tracking[chat_id][msg_id]
+                                
+                    except Exception as e:
+                        print(f"⚠️ خطا در بررسی چت {chat_id}: {e}")
+                
+                await asyncio.sleep(2)
+                
+            except Exception as e:
+                print(f"⚠️ خطا در تشخیص حذف: {e}")
+                await asyncio.sleep(5)
     
     async def setup_handlers(self):
         @self.client.on(events.NewMessage)
@@ -189,176 +251,217 @@ class SelfBot:
                 if event.sender_id != self.my_id:
                     return
                 
-                chat = await event.get_chat()
                 chat_id = event.chat_id
-                chat_title = getattr(chat, 'title', 'خصوصی')
                 text = event.raw_text or ""
                 
-                print(f"📨 دستور از خودم در {chat_title}: {text[:30]}")
+                # ========== حالت بولد ==========
+                if text == "بولد روشن":
+                    self.bold_mode = True
+                    self.save_data()
+                    await event.reply("✅ حالت بولد فعال شد!")
+                    return
                 
-                if text == "تنظیم دوست":
-                    if not event.is_reply:
-                        await event.reply("❌ لطفاً روی پیام کاربر ریپلای کن!")
-                        return
+                if text == "بولد خاموش":
+                    self.bold_mode = False
+                    self.save_data()
+                    await event.reply("⏹️ حالت بولد غیرفعال شد!")
+                    return
+                
+                # ========== تشخیص حذف ==========
+                if text == "تشخیص حذف روشن":
+                    self.delete_detection_enabled = True
+                    self.save_data()
+                    await event.reply("✅ تشخیص پیام حذف شده فعال شد!")
                     
+                    # راه‌اندازی مجدد تسک
+                    for task in self.tasks:
+                        if task.get_name() == "delete_detector":
+                            task.cancel()
+                    delete_task = asyncio.create_task(self.deleted_message_detector(), name="delete_detector")
+                    self.tasks.append(delete_task)
+                    return
+                
+                if text == "تشخیص حذف خاموش":
+                    self.delete_detection_enabled = False
+                    self.save_data()
+                    await event.reply("⏹️ تشخیص پیام حذف شده غیرفعال شد!")
+                    return
+                
+                # ========== پیگیری کاربر ==========
+                if text.startswith("پیگیری "):
+                    try:
+                        user_id = int(text[7:].strip())
+                        
+                        # دریافت اطلاعات کاربر
+                        try:
+                            user = await self.client.get_entity(user_id)
+                            user_name = user.first_name or "کاربر"
+                        except:
+                            user_name = "کاربر ناشناس"
+                        
+                        # ذخیره برای پیگیری
+                        if chat_id not in self.deleted_msg_tracking:
+                            self.deleted_msg_tracking[chat_id] = {}
+                        
+                        await event.reply(
+                            f"✅ پیگیری پیام‌های {user_name} فعال شد!\n"
+                            f"🆔 آیدی: {user_id}\n"
+                            f"📍 در این گروه"
+                        )
+                        
+                    except Exception as e:
+                        await event.reply(f"❌ خطا: {e}")
+                    return
+                
+                if text == "توقف پیگیری":
+                    if chat_id in self.deleted_msg_tracking:
+                        del self.deleted_msg_tracking[chat_id]
+                        await event.reply("✅ پیگیری متوقف شد")
+                    else:
+                        await event.reply("❌ پیگیری فعال نیست")
+                    return
+                
+                # ========== تنظیم کاربر خاص ==========
+                if text.startswith("تنظیم کاربر ") and event.is_reply:
+                    try:
+                        name = text[12:].strip()
+                        reply = await event.get_reply_message()
+                        target = await reply.get_sender()
+                        
+                        user_id = str(target.id)
+                        self.special_users[user_id] = {
+                            "name": name,
+                            "replies": []
+                        }
+                        self.save_data()
+                        
+                        msg = f"✅ **کاربر خاص تنظیم شد!**\n👤 نام: {name}\n🆔 آیدی: {user_id}"
+                        if self.bold_mode:
+                            await event.reply(f"**{msg}**")
+                        else:
+                            await event.reply(msg)
+                    except:
+                        await event.reply("❌ خطا")
+                    return
+                
+                # ========== افزودن پاسخ ==========
+                if text.startswith("افزودن پاسخ "):
+                    try:
+                        parts = text[12:].split("=>")
+                        if len(parts) == 2:
+                            user_id = parts[0].strip()
+                            reply_text = parts[1].strip()
+                            
+                            if user_id in self.special_users:
+                                self.special_users[user_id]["replies"].append(reply_text)
+                                self.save_data()
+                                
+                                msg = f"✅ پاسخ برای {self.special_users[user_id]['name']} اضافه شد:\n💬 {reply_text}"
+                                if self.bold_mode:
+                                    await event.reply(f"**{msg}**")
+                                else:
+                                    await event.reply(msg)
+                            else:
+                                await event.reply("❌ این کاربر وجود ندارد")
+                        else:
+                            await event.reply("❌ فرمت صحیح: افزودن پاسخ آیدی => متن")
+                    except:
+                        await event.reply("❌ خطا")
+                    return
+                
+                # ========== تنظیم دشمن ==========
+                if text == "تنظیم دشمن" and event.is_reply:
                     reply = await event.get_reply_message()
                     target = await reply.get_sender()
                     
-                    if target.bot:
-                        await event.reply("❌ نمیتونی بات رو دوست کنی!")
-                        return
+                    user_id = str(target.id)
+                    self.enemies[user_id] = {
+                        "name": target.first_name or "کاربر",
+                        "chat_id": chat_id,
+                        "bad_words": self.default_bad_words.copy()
+                    }
+                    self.save_data()
                     
-                    self.friend_id = target.id
-                    self.friend_name = target.first_name or "کاربر"
-                    self.friend_chat_id = chat_id
-                    self.friend_mode = True
-                    
-                    await event.reply(
-                        f"✅ **دوست تنظیم شد!**\n\n"
-                        f"👤 **کاربر:** {self.friend_name}\n"
-                        f"📍 **گروه:** {chat_title}\n"
-                        f"😄 بهش جوک میدم!\n"
-                        f"📚 **جوک‌ها:** {len(self.jokes)}"
-                    )
-                    print(f"😄 دوست جدید: {self.friend_name}")
-                    return
-                
-                if text == "خاموش دوست":
-                    if self.friend_mode:
-                        old_name = self.friend_name
-                        self.friend_mode = False
-                        self.friend_id = None
-                        self.friend_name = None
-                        self.friend_chat_id = None
-                        await event.reply(f"✅ دوست {old_name} خاموش شد!")
+                    msg = f"✅ **دشمن تنظیم شد!**\n👤 نام: {target.first_name}\n🆔 آیدی: {user_id}"
+                    if self.bold_mode:
+                        await event.reply(f"**{msg}**")
                     else:
-                        await event.reply("⚠️ دوستی تنظیم نشده!")
+                        await event.reply(msg)
                     return
                 
-                if text == "تنظیم دشمن":
-                    if not event.is_reply:
-                        await event.reply("❌ لطفاً روی پیام کاربر ریپلای کن!")
-                        return
-                    
-                    reply = await event.get_reply_message()
-                    target = await reply.get_sender()
-                    
-                    if target.bot:
-                        await event.reply("❌ نمیتونی بات رو دشمن کنی!")
-                        return
-                    
-                    self.enemy_id = target.id
-                    self.enemy_name = target.first_name or "کاربر"
-                    self.enemy_chat_id = chat_id
-                    self.enemy_mode = True
-                    
-                    await event.reply(
-                        f"✅ **دشمن تنظیم شد!**\n\n"
-                        f"👤 **کاربر:** {self.enemy_name}\n"
-                        f"📍 **گروه:** {chat_title}\n"
-                        f"🔥 فقط همینجا فحش میخوره!\n"
-                        f"📚 **فحش‌ها:** {len(self.bad_words)}"
-                    )
-                    print(f"🎯 دشمن: {self.enemy_name}")
+                # ========== افزودن فحش ==========
+                if text.startswith("افزودن فحش "):
+                    try:
+                        parts = text[11:].split("=>")
+                        if len(parts) == 2:
+                            user_id = parts[0].strip()
+                            bad_word = parts[1].strip()
+                            
+                            if user_id in self.enemies:
+                                self.enemies[user_id]["bad_words"].append(bad_word)
+                                self.save_data()
+                                
+                                msg = f"✅ فحش برای {self.enemies[user_id]['name']} اضافه شد"
+                                if self.bold_mode:
+                                    await event.reply(f"**{msg}**")
+                                else:
+                                    await event.reply(msg)
+                            else:
+                                await event.reply("❌ این دشمن وجود ندارد")
+                        else:
+                            await event.reply("❌ فرمت صحیح: افزودن فحش آیدی => متن")
+                    except:
+                        await event.reply("❌ خطا")
                     return
                 
-                if text == "خاموش دشمن":
-                    if self.enemy_mode:
-                        old_name = self.enemy_name
-                        self.enemy_mode = False
-                        self.enemy_id = None
-                        self.enemy_name = None
-                        self.enemy_chat_id = None
-                        await event.reply(f"✅ دشمن {old_name} خاموش شد!")
+                # ========== لیست‌ها ==========
+                if text == "لیست کاربران":
+                    if self.special_users:
+                        msg = "📋 **لیست کاربران خاص:**\n\n"
+                        for uid, data in self.special_users.items():
+                            msg += f"👤 **{data['name']}** (آیدی: {uid})\n💬 {len(data['replies'])} پاسخ\n\n"
+                        if self.bold_mode:
+                            await event.reply(f"**{msg}**")
+                        else:
+                            await event.reply(msg)
                     else:
-                        await event.reply("⚠️ دشمنی تنظیم نشده!")
+                        await event.reply("📭 هیچ کاربر خاصی وجود ندارد")
                     return
                 
-                if text == "وضعیت":
-                    enemy_status = "🔥 فعال" if self.enemy_mode else "⭕ غیرفعال"
-                    enemy_name = self.enemy_name if self.enemy_mode else "ندارد"
-                    friend_status = "😄 فعال" if self.friend_mode else "⭕ غیرفعال"
-                    friend_name = self.friend_name if self.friend_mode else "ندارد"
-                    clock_status = "🟢 روشن" if self.clock_enabled else "🔴 خاموش"
-                    now = datetime.now(pytz.timezone('Asia/Tehran')).strftime('%H:%M:%S')
-                    
-                    await event.reply(
-                        f"📊 **وضعیت سلف بات**\n\n"
-                        f"👤 **دوست:** {friend_name}\n"
-                        f"😄 **حالت دوست:** {friend_status}\n"
-                        f"👤 **دشمن:** {enemy_name}\n"
-                        f"🔥 **حالت دشمن:** {enemy_status}\n"
-                        f"⏰ **ساعت:** {clock_status}\n"
-                        f"🕒 **زمان:** {now}\n"
-                        f"📚 **فحش‌ها:** {len(self.bad_words)}\n"
-                        f"😄 **جوک‌ها:** {len(self.jokes)}"
-                    )
+                if text == "لیست دشمنان":
+                    if self.enemies:
+                        msg = "👤 **لیست دشمنان:**\n\n"
+                        for uid, data in self.enemies.items():
+                            msg += f"🔥 {data['name']} (آیدی: {uid})\n💬 {len(data['bad_words'])} فحش\n\n"
+                        if self.bold_mode:
+                            await event.reply(f"**{msg}**")
+                        else:
+                            await event.reply(msg)
+                    else:
+                        await event.reply("✅ هیچ دشمنی وجود ندارد")
                     return
                 
+                # ========== ساعت ==========
                 if text == "ساعت روشن":
                     self.clock_enabled = True
+                    self.save_data()
                     await self.update_clock()
                     await event.reply("✅ ساعت روشن شد!")
                     return
                 
                 if text == "ساعت خاموش":
                     self.clock_enabled = False
+                    self.save_data()
                     await self.update_clock()
                     await event.reply("⏹️ ساعت خاموش شد!")
                     return
                 
-            except Exception as e:
-                print(f"⚠️ خطا: {e}")
+                # ========== وضعیت ==========
+                if text == "وضعیت":
+                    now = datetime.now(pytz.timezone('Asia/Tehran')).strftime('%H:%M:%S')
+                    msg = (
+                        f"📊 **وضعیت سلف بات**\n\n"
+                        f"👥 کاربران خاص: {len(self.special_users)}\n"
+                        f"👤 دشمنان: {len(self.enemies)}\n"
+                        f"⚡ حالت بولد: {'🟢 روشن' if self.bold_mode else '🔴 خاموش'}\n"
         
-        @self.client.on(events.NewMessage)
-        async def reply_handler(event):
-            try:
-                if (self.enemy_mode and 
-                    self.enemy_id and 
-                    self.enemy_chat_id and
-                    event.sender_id == self.enemy_id and 
-                    event.chat_id == self.enemy_chat_id):
-                    
-                    if random.random() < 0.9 and self.bad_words:
-                        word = random.choice(self.bad_words)
-                        await asyncio.sleep(random.uniform(0.3, 1))
-                        await event.reply(word)
-                        print(f"🔥 فحش به {self.enemy_name}")
-                
-                if (self.friend_mode and 
-                    self.friend_id and 
-                    self.friend_chat_id and
-                    event.sender_id == self.friend_id and 
-                    event.chat_id == self.friend_chat_id):
-                    
-                    if random.random() < 0.7 and self.jokes:
-                        joke = random.choice(self.jokes)
-                        await asyncio.sleep(random.uniform(0.3, 1))
-                        await event.reply(joke)
-                        print(f"😄 جوک به {self.friend_name}")
-                        
-            except Exception as e:
-                print(f"⚠️ خطا در پاسخ: {e}")
-    
-    async def stop(self):
-        self.running = False
-        for task in self.tasks:
-            task.cancel()
-        if self.client:
-            await self.client.disconnect()
-
-# ========== اجرا ==========
-if __name__ == "__main__":
-    bot = SelfBot()
-    
-    # مدیریت سیگنال برای بستن درست
-    def signal_handler():
-        print("\n\n🛑 در حال توقف بات...")
-        asyncio.create_task(bot.stop())
-    
-    try:
-        asyncio.run(bot.start())
-    except KeyboardInterrupt:
-        print("\n\n🛑 بات توسط کاربر متوقف شد.")
-    except Exception as e:
-        print(f"\n❌ خطا: {e}")
