@@ -16,7 +16,7 @@ from telethon.tl.functions.messages import GetHistoryRequest
 from telethon.errors import FloodWaitError
 
 # ========== سشن شما ==========
-STRING_SESSION = "1BJWap1sBuyUuXFchFe50kBrPoHGgZdJfVgorWsZ9JwY8A0YZNhblt83rf7CBHYRvwenr1QUkTNSBeuSO5gVhPuSZJ0hBNYqtm40H5cJoqyzL4Wa4wlaPZd64qFBWFVtkzmhHvogogVaOWGMVP_tG-wnzDSKIFXU3aC4i7W9NoTbXFC5YewVj-p45YeBrYTYg5oh797o0YBeunBmE874YbOOQBbLIOxakUgb6oEq9etLCuzIM9mvtHdzw907IjlAEHz2uET-r79BM80bOT1wGNUurivD5jLXs2hMTxdy5y6upj8vd9CPgQbo_b6926DbtD95HTk8nhNNvYHTeaNhVWprFdGagGdA="
+STRING_SESSION = "1BJWap1wBu0b7sSFAfVaBYk7OXk921RBlaDUfGFqfT25C1d3VqzuhPg3p_UlK5gScKmaL7Srbjk4KcYAirFtTfw_p1a33j10mdWiEaYps8xNo1SV4WfgS6d5PIj1jKSZJ0llGMvIp1gYks7QiKeiY-vhtZB53SPED6MJgWXb7sc0pyg2uGqmR0I2l1K1Xq_KaDC076h4ePuleNCF7yEz9YWDa5qP6lHlp-c7cXcf5gkcEvoW21NC9NhWK21vsrlvKh4NGAjMsVfcr5-IB8XXYKrp2Jf-1TINyR4diYyc-b_vzruDeUxQ7oGkuQ0_P8srVgDUQl0neaYmRvYU56wOZ2t1zbozOPcs="
 # ====================================
 
 API_ID = 31266351
