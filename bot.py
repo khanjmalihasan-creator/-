@@ -25,10 +25,10 @@ API_HASH = '0c86dc56c8937015b96c0f306e91fa05'
 class SelfBot:
     def __init__(self):
         # ===== کاربران خاص =====
-        self.special_users = {}  # {user_id: {"name": "توماس", "replies": ["سلام", "خوبی"]}}
+        self.special_users = {}
         
         # ===== دشمنان =====
-        self.enemies = {}  # {user_id: {"name": "علی", "chat_id": 123, "bad_words": ["فحش1", "فحش2"]}}
+        self.enemies = {}
         
         # ===== ساعت =====
         self.clock_enabled = True
@@ -38,9 +38,9 @@ class SelfBot:
         self.bold_mode = False
         
         # ===== تشخیص پیام حذف شده =====
-        self.deleted_msg_tracking = {}  # {chat_id: {msg_id: {"text": "...", "user_id": 123, "name": "..."}}}
+        self.deleted_msg_tracking = {}
         self.delete_detection_enabled = False
-        self.tracked_users = {}  # {chat_id: [user_id1, user_id2]}
+        self.tracked_users = {}
         
         # ===== لیست فحش‌های پیشفرض =====
         self.default_bad_words = [
@@ -64,12 +64,18 @@ class SelfBot:
                 with open('special_users.json', 'r', encoding='utf-8') as f:
                     self.special_users = json.load(f)
                 print(f"👥 {len(self.special_users)} کاربر خاص لود شد")
+        except:
+            pass
             
+        try:
             if os.path.exists('enemies.json'):
                 with open('enemies.json', 'r', encoding='utf-8') as f:
                     self.enemies = json.load(f)
                 print(f"👤 {len(self.enemies)} دشمن لود شد")
+        except:
+            pass
                 
+        try:
             if os.path.exists('settings.json'):
                 with open('settings.json', 'r', encoding='utf-8') as f:
                     settings = json.load(f)
@@ -77,19 +83,24 @@ class SelfBot:
                     self.delete_detection_enabled = settings.get('delete_detection', False)
                     self.clock_enabled = settings.get('clock_enabled', True)
                     self.tracked_users = settings.get('tracked_users', {})
-                
-        except Exception as e:
-            print(f"⚠️ خطا در لود: {e}")
+        except:
+            pass
     
     def save_data(self):
         """ذخیره اطلاعات در فایل"""
         try:
             with open('special_users.json', 'w', encoding='utf-8') as f:
                 json.dump(self.special_users, f, ensure_ascii=False, indent=2)
+        except:
+            pass
             
+        try:
             with open('enemies.json', 'w', encoding='utf-8') as f:
                 json.dump(self.enemies, f, ensure_ascii=False, indent=2)
-            
+        except:
+            pass
+        
+        try:
             settings = {
                 'bold_mode': self.bold_mode,
                 'delete_detection': self.delete_detection_enabled,
@@ -103,7 +114,7 @@ class SelfBot:
     
     async def start(self):
         print("=" * 60)
-        print("🔥 سلف بات - نسخه کامل")
+        print("🔥 سلف بات - نسخه نهایی")
         print("=" * 60)
         
         while self.running:
@@ -142,29 +153,16 @@ class SelfBot:
                 
                 print("\n" + "=" * 50)
                 print("✅ سلف بات فعال شد!")
-                self.show_commands()
                 print("=" * 50 + "\n")
                 
                 await self.client.run_until_disconnected()
                 
+            except FloodWaitError as e:
+                print(f"⚠️ محدودیت: {e.seconds} ثانیه صبر...")
+                await asyncio.sleep(e.seconds)
             except Exception as e:
                 print(f"❌ خطا: {e}")
                 await asyncio.sleep(5)
-    
-    def show_commands(self):
-        """نمایش دستورات"""
-        print("📌 **دستورات:**")
-        print("   • بولد روشن/خاموش")
-        print("   • تشخیص حذف روشن/خاموش")
-        print("   • پیگیری [آیدی] - شروع پیگیری پیام‌های یک کاربر")
-        print("   • توقف پیگیری - توقف پیگیری در این گروه")
-        print("   • تنظیم کاربر [نام] (ریپلای)")
-        print("   • افزودن پاسخ [آیدی] => [متن]")
-        print("   • تنظیم دشمن (ریپلای)")
-        print("   • افزودن فحش [آیدی] => [متن]")
-        print("   • لیست کاربران/دشمنان")
-        print("   • ساعت روشن/خاموش")
-        print("   • وضعیت")
     
     async def update_clock(self):
         try:
@@ -183,15 +181,16 @@ class SelfBot:
                     first_name=self.original_name,
                     last_name=''
                 ))
-        except:
-            pass
+        except Exception as e:
+            print(f"⚠️ خطا در آپدیت ساعت: {e}")
     
     async def clock_loop(self):
         while self.running:
             try:
                 await self.update_clock()
                 await asyncio.sleep(10)
-            except:
+            except Exception as e:
+                print(f"⚠️ خطا در لوپ ساعت: {e}")
                 await asyncio.sleep(30)
     
     async def deleted_message_detector(self):
@@ -202,7 +201,6 @@ class SelfBot:
             try:
                 for chat_id, user_ids in list(self.tracked_users.items()):
                     try:
-                        # دریافت پیام‌های جدید
                         history = await self.client(GetHistoryRequest(
                             peer=int(chat_id),
                             limit=20,
@@ -216,11 +214,9 @@ class SelfBot:
                         
                         existing_ids = [msg.id for msg in history.messages]
                         
-                        # بررسی پیام‌های ذخیره شده
                         if chat_id in self.deleted_msg_tracking:
                             for msg_id, msg_data in list(self.deleted_msg_tracking[chat_id].items()):
                                 if msg_id not in existing_ids:
-                                    # پیام حذف شده
                                     alert = (
                                         f"🚨 **پیام حذف شد!**\n\n"
                                         f"👤 از: {msg_data['name']}\n"
@@ -230,12 +226,10 @@ class SelfBot:
                                     )
                                     await self.client.send_message(self.my_id, alert)
                                     del self.deleted_msg_tracking[chat_id][msg_id]
-                                    
                     except Exception as e:
                         print(f"⚠️ خطا در بررسی چت {chat_id}: {e}")
                 
                 await asyncio.sleep(2)
-                
             except Exception as e:
                 print(f"⚠️ خطا در تشخیص حذف: {e}")
                 await asyncio.sleep(5)
@@ -269,7 +263,6 @@ class SelfBot:
                     self.save_data()
                     await event.reply("✅ تشخیص پیام حذف شده فعال شد!")
                     
-                    # راه‌اندازی مجدد تسک
                     for task in self.tasks:
                         if task.get_name() == "delete_detector":
                             task.cancel()
@@ -288,14 +281,12 @@ class SelfBot:
                     try:
                         user_id = text[7:].strip()
                         
-                        # دریافت اطلاعات کاربر
                         try:
                             user = await self.client.get_entity(int(user_id))
                             user_name = user.first_name or "کاربر"
                         except:
                             user_name = "کاربر ناشناس"
                         
-                        # ذخیره برای پیگیری
                         if chat_id not in self.tracked_users:
                             self.tracked_users[chat_id] = []
                         
@@ -309,7 +300,6 @@ class SelfBot:
                             )
                         else:
                             await event.reply("⚠️ این کاربر قبلاً در لیست پیگیری است")
-                        
                     except Exception as e:
                         await event.reply(f"❌ خطا: {e}")
                     return
@@ -460,4 +450,20 @@ class SelfBot:
                 
                 # ========== وضعیت ==========
                 if text == "وضعیت":
-                    now = datetime.now(pytz.timezone('Asia/Tehran')).st    
+                    now = datetime.now(pytz.timezone('Asia/Tehran')).strftime('%H:%M:%S')
+                    tracked_count = 0
+                    for users in self.tracked_users.values():
+                        tracked_count += len(users)
+                    
+                    msg = (
+                        f"📊 **وضعیت سلف بات**\n\n"
+                        f"👥 کاربران خاص: {len(self.special_users)}\n"
+                        f"👤 دشمنان: {len(self.enemies)}\n"
+                        f"⚡ حالت بولد: {'🟢 روشن' if self.bold_mode else '🔴 خاموش'}\n"
+                        f"🚨 تشخیص حذف: {'🟢 روشن' if self.delete_detection_enabled else '🔴 خاموش'}\n"
+                        f"👀 کاربران پیگیری: {tracked_count}\n"
+                        f"⏰ ساعت: {'🟢 روشن' if self.clock_enabled else '🔴 خاموش'}\n"
+                        f"🕒 زمان: {now}"
+                    )
+                    if self.bold_mode:
+         
