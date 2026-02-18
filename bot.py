@@ -40,6 +40,7 @@ class SelfBot:
         # ===== تشخیص پیام حذف شده =====
         self.deleted_msg_tracking = {}  # {chat_id: {msg_id: {"text": "...", "user_id": 123, "name": "..."}}}
         self.delete_detection_enabled = False
+        self.tracked_users = {}  # {chat_id: [user_id1, user_id2]}
         
         # ===== لیست فحش‌های پیشفرض =====
         self.default_bad_words = [
@@ -75,6 +76,7 @@ class SelfBot:
                     self.bold_mode = settings.get('bold_mode', False)
                     self.delete_detection_enabled = settings.get('delete_detection', False)
                     self.clock_enabled = settings.get('clock_enabled', True)
+                    self.tracked_users = settings.get('tracked_users', {})
                 
         except Exception as e:
             print(f"⚠️ خطا در لود: {e}")
@@ -91,7 +93,8 @@ class SelfBot:
             settings = {
                 'bold_mode': self.bold_mode,
                 'delete_detection': self.delete_detection_enabled,
-                'clock_enabled': self.clock_enabled
+                'clock_enabled': self.clock_enabled,
+                'tracked_users': self.tracked_users
             }
             with open('settings.json', 'w', encoding='utf-8') as f:
                 json.dump(settings, f, ensure_ascii=False, indent=2)
@@ -100,7 +103,7 @@ class SelfBot:
     
     async def start(self):
         print("=" * 60)
-        print("🔥 سلف بات - نسخه کامل با همه قابلیت‌ها")
+        print("🔥 سلف بات - نسخه کامل")
         print("=" * 60)
         
         while self.running:
@@ -150,24 +153,16 @@ class SelfBot:
     
     def show_commands(self):
         """نمایش دستورات"""
-        print("📌 **دستورات جدید:**")
-        print("   • بولد روشن - فعال کردن حالت بولد")
-        print("   • بولد خاموش - غیرفعال کردن حالت بولد")
-        print("   • تشخیص حذف روشن - فعال کردن تشخیص پیام حذف شده")
-        print("   • تشخیص حذف خاموش - غیرفعال کردن")
+        print("📌 **دستورات:**")
+        print("   • بولد روشن/خاموش")
+        print("   • تشخیص حذف روشن/خاموش")
         print("   • پیگیری [آیدی] - شروع پیگیری پیام‌های یک کاربر")
-        print("   • توقف پیگیری - توقف پیگیری")
-        print("\n📌 **دستورات کاربران خاص:**")
-        print("   • تنظیم کاربر [نام] (ریپلای) - مثال: تنظیم کاربر توماس")
+        print("   • توقف پیگیری - توقف پیگیری در این گروه")
+        print("   • تنظیم کاربر [نام] (ریپلای)")
         print("   • افزودن پاسخ [آیدی] => [متن]")
-        print("   • حذف کاربر [آیدی]")
-        print("   • لیست کاربران")
-        print("\n📌 **دستورات دشمنان:**")
         print("   • تنظیم دشمن (ریپلای)")
         print("   • افزودن فحش [آیدی] => [متن]")
-        print("   • حذف دشمن [آیدی]")
-        print("   • لیست دشمنان")
-        print("\n📌 **سایر:**")
+        print("   • لیست کاربران/دشمنان")
         print("   • ساعت روشن/خاموش")
         print("   • وضعیت")
     
@@ -205,11 +200,11 @@ class SelfBot:
         
         while self.running and self.delete_detection_enabled:
             try:
-                for chat_id, messages in list(self.deleted_msg_tracking.items()):
+                for chat_id, user_ids in list(self.tracked_users.items()):
                     try:
                         # دریافت پیام‌های جدید
                         history = await self.client(GetHistoryRequest(
-                            peer=chat_id,
+                            peer=int(chat_id),
                             limit=20,
                             offset_date=None,
                             offset_id=0,
@@ -221,20 +216,21 @@ class SelfBot:
                         
                         existing_ids = [msg.id for msg in history.messages]
                         
-                        # بررسی پیام‌های حذف شده
-                        for msg_id, msg_data in list(messages.items()):
-                            if msg_id not in existing_ids:
-                                # پیام حذف شده
-                                alert = (
-                                    f"🚨 **پیام حذف شد!**\n\n"
-                                    f"👤 از: {msg_data['name']}\n"
-                                    f"🆔 آیدی: {msg_data['user_id']}\n"
-                                    f"📝 متن: {msg_data['text']}\n"
-                                    f"🕒 زمان حذف: {datetime.now().strftime('%H:%M:%S')}"
-                                )
-                                await self.client.send_message(self.my_id, alert)
-                                del self.deleted_msg_tracking[chat_id][msg_id]
-                                
+                        # بررسی پیام‌های ذخیره شده
+                        if chat_id in self.deleted_msg_tracking:
+                            for msg_id, msg_data in list(self.deleted_msg_tracking[chat_id].items()):
+                                if msg_id not in existing_ids:
+                                    # پیام حذف شده
+                                    alert = (
+                                        f"🚨 **پیام حذف شد!**\n\n"
+                                        f"👤 از: {msg_data['name']}\n"
+                                        f"🆔 آیدی: {msg_data['user_id']}\n"
+                                        f"📝 متن: {msg_data['text']}\n"
+                                        f"🕒 زمان حذف: {datetime.now().strftime('%H:%M:%S')}"
+                                    )
+                                    await self.client.send_message(self.my_id, alert)
+                                    del self.deleted_msg_tracking[chat_id][msg_id]
+                                    
                     except Exception as e:
                         print(f"⚠️ خطا در بررسی چت {chat_id}: {e}")
                 
@@ -251,7 +247,7 @@ class SelfBot:
                 if event.sender_id != self.my_id:
                     return
                 
-                chat_id = event.chat_id
+                chat_id = str(event.chat_id)
                 text = event.raw_text or ""
                 
                 # ========== حالت بولد ==========
@@ -290,33 +286,39 @@ class SelfBot:
                 # ========== پیگیری کاربر ==========
                 if text.startswith("پیگیری "):
                     try:
-                        user_id = int(text[7:].strip())
+                        user_id = text[7:].strip()
                         
                         # دریافت اطلاعات کاربر
                         try:
-                            user = await self.client.get_entity(user_id)
+                            user = await self.client.get_entity(int(user_id))
                             user_name = user.first_name or "کاربر"
                         except:
                             user_name = "کاربر ناشناس"
                         
                         # ذخیره برای پیگیری
-                        if chat_id not in self.deleted_msg_tracking:
-                            self.deleted_msg_tracking[chat_id] = {}
+                        if chat_id not in self.tracked_users:
+                            self.tracked_users[chat_id] = []
                         
-                        await event.reply(
-                            f"✅ پیگیری پیام‌های {user_name} فعال شد!\n"
-                            f"🆔 آیدی: {user_id}\n"
-                            f"📍 در این گروه"
-                        )
+                        if user_id not in self.tracked_users[chat_id]:
+                            self.tracked_users[chat_id].append(user_id)
+                            self.save_data()
+                            
+                            await event.reply(
+                                f"✅ پیگیری پیام‌های {user_name} فعال شد!\n"
+                                f"🆔 آیدی: {user_id}"
+                            )
+                        else:
+                            await event.reply("⚠️ این کاربر قبلاً در لیست پیگیری است")
                         
                     except Exception as e:
                         await event.reply(f"❌ خطا: {e}")
                     return
                 
                 if text == "توقف پیگیری":
-                    if chat_id in self.deleted_msg_tracking:
-                        del self.deleted_msg_tracking[chat_id]
-                        await event.reply("✅ پیگیری متوقف شد")
+                    if chat_id in self.tracked_users:
+                        del self.tracked_users[chat_id]
+                        self.save_data()
+                        await event.reply("✅ پیگیری در این گروه متوقف شد")
                     else:
                         await event.reply("❌ پیگیری فعال نیست")
                     return
@@ -340,8 +342,8 @@ class SelfBot:
                             await event.reply(f"**{msg}**")
                         else:
                             await event.reply(msg)
-                    except:
-                        await event.reply("❌ خطا")
+                    except Exception as e:
+                        await event.reply(f"❌ خطا: {e}")
                     return
                 
                 # ========== افزودن پاسخ ==========
@@ -365,8 +367,8 @@ class SelfBot:
                                 await event.reply("❌ این کاربر وجود ندارد")
                         else:
                             await event.reply("❌ فرمت صحیح: افزودن پاسخ آیدی => متن")
-                    except:
-                        await event.reply("❌ خطا")
+                    except Exception as e:
+                        await event.reply(f"❌ خطا: {e}")
                     return
                 
                 # ========== تنظیم دشمن ==========
@@ -377,7 +379,7 @@ class SelfBot:
                     user_id = str(target.id)
                     self.enemies[user_id] = {
                         "name": target.first_name or "کاربر",
-                        "chat_id": chat_id,
+                        "chat_id": event.chat_id,
                         "bad_words": self.default_bad_words.copy()
                     }
                     self.save_data()
@@ -410,8 +412,8 @@ class SelfBot:
                                 await event.reply("❌ این دشمن وجود ندارد")
                         else:
                             await event.reply("❌ فرمت صحیح: افزودن فحش آیدی => متن")
-                    except:
-                        await event.reply("❌ خطا")
+                    except Exception as e:
+                        await event.reply(f"❌ خطا: {e}")
                     return
                 
                 # ========== لیست‌ها ==========
@@ -458,10 +460,4 @@ class SelfBot:
                 
                 # ========== وضعیت ==========
                 if text == "وضعیت":
-                    now = datetime.now(pytz.timezone('Asia/Tehran')).strftime('%H:%M:%S')
-                    msg = (
-                        f"📊 **وضعیت سلف بات**\n\n"
-                        f"👥 کاربران خاص: {len(self.special_users)}\n"
-                        f"👤 دشمنان: {len(self.enemies)}\n"
-                        f"⚡ حالت بولد: {'🟢 روشن' if self.bold_mode else '🔴 خاموش'}\n"
-        
+                    now = datetime.now(pytz.timezone('Asia/Tehran')).st    
