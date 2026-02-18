@@ -24,31 +24,20 @@ API_HASH = '0c86dc56c8937015b96c0f306e91fa05'
 
 class SelfBot:
     def __init__(self):
-        # ===== کاربران خاص =====
         self.special_users = {}
-        
-        # ===== دشمنان =====
         self.enemies = {}
-        
-        # ===== ساعت =====
         self.clock_enabled = True
         self.original_name = ""
-        
-        # ===== حالت بولد =====
         self.bold_mode = False
-        
-        # ===== تشخیص پیام حذف شده =====
         self.deleted_msg_tracking = {}
         self.delete_detection_enabled = False
         self.tracked_users = {}
         
-        # ===== لیست فحش‌های پیشفرض =====
         self.default_bad_words = [
             "کص ننت", "کیرم دهنت", "جنده", "کونی", "لاشی",
             "کص کش", "حرومزاده", "گاییدمت", "ننه جنده"
         ]
         
-        # ===== متغیرهای بات =====
         self.client = None
         self.me = None
         self.my_id = None
@@ -58,7 +47,6 @@ class SelfBot:
         self.load_data()
     
     def load_data(self):
-        """لود اطلاعات از فایل"""
         try:
             if os.path.exists('special_users.json'):
                 with open('special_users.json', 'r', encoding='utf-8') as f:
@@ -87,7 +75,6 @@ class SelfBot:
             pass
     
     def save_data(self):
-        """ذخیره اطلاعات در فایل"""
         try:
             with open('special_users.json', 'w', encoding='utf-8') as f:
                 json.dump(self.special_users, f, ensure_ascii=False, indent=2)
@@ -194,7 +181,6 @@ class SelfBot:
                 await asyncio.sleep(30)
     
     async def deleted_message_detector(self):
-        """تشخیص پیام‌های حذف شده"""
         print("👀 شروع نظارت بر پیام‌های حذف شده...")
         
         while self.running and self.delete_detection_enabled:
@@ -244,7 +230,6 @@ class SelfBot:
                 chat_id = str(event.chat_id)
                 text = event.raw_text or ""
                 
-                # ========== حالت بولد ==========
                 if text == "بولد روشن":
                     self.bold_mode = True
                     self.save_data()
@@ -257,7 +242,6 @@ class SelfBot:
                     await event.reply("⏹️ حالت بولد غیرفعال شد!")
                     return
                 
-                # ========== تشخیص حذف ==========
                 if text == "تشخیص حذف روشن":
                     self.delete_detection_enabled = True
                     self.save_data()
@@ -276,7 +260,6 @@ class SelfBot:
                     await event.reply("⏹️ تشخیص پیام حذف شده غیرفعال شد!")
                     return
                 
-                # ========== پیگیری کاربر ==========
                 if text.startswith("پیگیری "):
                     try:
                         user_id = text[7:].strip()
@@ -313,7 +296,6 @@ class SelfBot:
                         await event.reply("❌ پیگیری فعال نیست")
                     return
                 
-                # ========== تنظیم کاربر خاص ==========
                 if text.startswith("تنظیم کاربر ") and event.is_reply:
                     try:
                         name = text[12:].strip()
@@ -336,7 +318,6 @@ class SelfBot:
                         await event.reply(f"❌ خطا: {e}")
                     return
                 
-                # ========== افزودن پاسخ ==========
                 if text.startswith("افزودن پاسخ "):
                     try:
                         parts = text[12:].split("=>")
@@ -361,7 +342,6 @@ class SelfBot:
                         await event.reply(f"❌ خطا: {e}")
                     return
                 
-                # ========== تنظیم دشمن ==========
                 if text == "تنظیم دشمن" and event.is_reply:
                     reply = await event.get_reply_message()
                     target = await reply.get_sender()
@@ -381,7 +361,6 @@ class SelfBot:
                         await event.reply(msg)
                     return
                 
-                # ========== افزودن فحش ==========
                 if text.startswith("افزودن فحش "):
                     try:
                         parts = text[11:].split("=>")
@@ -406,7 +385,6 @@ class SelfBot:
                         await event.reply(f"❌ خطا: {e}")
                     return
                 
-                # ========== لیست‌ها ==========
                 if text == "لیست کاربران":
                     if self.special_users:
                         msg = "📋 **لیست کاربران خاص:**\n\n"
@@ -433,7 +411,6 @@ class SelfBot:
                         await event.reply("✅ هیچ دشمنی وجود ندارد")
                     return
                 
-                # ========== ساعت ==========
                 if text == "ساعت روشن":
                     self.clock_enabled = True
                     self.save_data()
@@ -448,7 +425,6 @@ class SelfBot:
                     await event.reply("⏹️ ساعت خاموش شد!")
                     return
                 
-                # ========== وضعیت ==========
                 if text == "وضعیت":
                     now = datetime.now(pytz.timezone('Asia/Tehran')).strftime('%H:%M:%S')
                     tracked_count = 0
@@ -466,4 +442,24 @@ class SelfBot:
                         f"🕒 زمان: {now}"
                     )
                     if self.bold_mode:
-         
+                        await event.reply(f"**{msg}**")
+                    else:
+                        await event.reply(msg)
+                    return
+                
+            except Exception as e:
+                print(f"⚠️ خطا در هندلر: {e}")
+        
+        @self.client.on(events.NewMessage)
+        async def reply_handler(event):
+            try:
+                user_id = str(event.sender_id)
+                chat_id = str(event.chat_id)
+                
+                if self.delete_detection_enabled and chat_id in self.tracked_users:
+                    if user_id in self.tracked_users[chat_id]:
+                        if chat_id not in self.deleted_msg_tracking:
+                            self.deleted_msg_tracking[chat_id] = {}
+                        
+                        sender = await event.get_sender()
+                        self.deleted_msg_tracking[chat
